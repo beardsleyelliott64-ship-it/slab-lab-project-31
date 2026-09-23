@@ -112,6 +112,12 @@ public class SlapLabRuntime : MonoBehaviour
         go.name = name; go.transform.SetParent(worldRoot);
         go.transform.localScale = Vector3.one*0.12f;
         go.GetComponent<Renderer>().material = Mat(color, 0.25f);
+        SphereCollider handCollider = go.GetComponent<SphereCollider>();
+        if (handCollider == null)
+            handCollider = go.AddComponent<SphereCollider>();
+        handCollider.radius = 0.5f;
+        handCollider.isTrigger = true;
+
         var hand = go.AddComponent<VRHand>();
         hand.Initialize(node, this);
         return hand;

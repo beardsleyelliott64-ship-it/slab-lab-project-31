@@ -2,51 +2,121 @@ using UnityEngine;
 
 public class SlapTarget : MonoBehaviour
 {
-    SlapLabRuntime game;
-    Transform head, face, body;
-    float wobble;
-    float lastSlap=-10f;
+    [SerializeField] private Transform face;
+    [SerializeField] private Transform head;
+    [SerializeField] private Transform body;
 
-    public void Initialize(SlapLabRuntime g)
+    private SlapLabRuntime runtime;
+    private Material skinMaterial;
+    private Material shirtMaterial;
+    private Material faceMaterial;
+
+    public Transform Face => face;
+    public Transform Head => head;
+    public Transform Body => body;
+
+    public void Initialize(SlapLabRuntime owner)
     {
-        game=g;
-        body=Part(PrimitiveType.Capsule,"Target Body",new Vector3(0,0,0),new Vector3(0.8f,1.25f,0.55f),new Color(0.12f,0.13f,0.17f),true);
-        head=Part(PrimitiveType.Sphere,"Target Head",new Vector3(0,1.15f,0),new Vector3(0.62f,0.62f,0.62f),new Color(0.18f,0.19f,0.23f),true);
-        face=Part(PrimitiveType.Sphere,"Face Hit Zone",new Vector3(0,1.13f,-0.39f),new Vector3(0.5f,0.36f,0.18f),new Color(0.85f,0.15f,0.2f),true);
-        Part(PrimitiveType.Sphere,"Left Eye",new Vector3(-0.15f,1.2f,-0.48f),new Vector3(0.07f,0.07f,0.04f),Color.white,false);
-        Part(PrimitiveType.Sphere,"Right Eye",new Vector3(0.15f,1.2f,-0.48f),new Vector3(0.07f,0.07f,0.04f),Color.white,false);
-        Part(PrimitiveType.Cube,"Mouth",new Vector3(0,0.98f,-0.47f),new Vector3(0.22f,0.035f,0.03f),Color.black,false);
-        Part(PrimitiveType.Cylinder,"Neck",new Vector3(0,0.55f,0),new Vector3(0.22f,0.25f,0.22f),new Color(0.1f,0.1f,0.12f),true);
-        Part(PrimitiveType.Cube,"ScorePad",new Vector3(0,-1.0f,0.1f),new Vector3(1.2f,0.08f,0.5f),new Color(0.04f,0.06f,0.09f),false);
+        runtime = owner;
+        BuildTarget();
     }
 
-    GameObject Part(PrimitiveType type,string n,Vector3 local,Vector3 scale,Color c,bool collider)
+    private void BuildTarget()
     {
-        var g=GameObject.CreatePrimitive(type); g.name=n; g.transform.SetParent(transform); g.transform.localPosition=local; g.transform.localScale=scale;
-        var r=g.GetComponent<Renderer>(); r.material=game.Mat(c,0.1f);
-        if(!collider) Object.Destroy(g.GetComponent<Collider>());
-        return g;
+        if (body != null)
+            return;
+
+        skinMaterial = runtime != null
+            ? runtime.Mat(new Color(0.55f, 0.20f, 0.16f), 0.0f)
+            : MakeMaterial(new Color(0.55f, 0.20f, 0.16f));
+
+        shirtMaterial = runtime != null
+            ? runtime.Mat(new Color(0.06f, 0.10f, 0.18f), 0.25f)
+            : MakeMaterial(new Color(0.06f, 0.10f, 0.18f));
+
+        faceMaterial = runtime != null
+            ? runtime.Mat(new Color(0.72f, 0.30f, 0.22f), 0.0f)
+            : MakeMaterial(new Color(0.72f, 0.30f, 0.22f));
+
+        GameObject torso = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        torso.name = "Body";
+        torso.transform.SetParent(transform, false);
+        torso.transform.localPosition = new Vector3(0f, -0.55f, 0f);
+        torso.transform.localScale = new Vector3(0.62f, 0.85f, 0.42f);
+        torso.GetComponent<Renderer>().material = shirtMaterial;
+        body = torso.transform;
+
+        GameObject neck = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        neck.name = "Neck";
+        neck.transform.SetParent(transform, false);
+        neck.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+        neck.transform.localScale = new Vector3(0.18f, 0.18f, 0.18f);
+        neck.GetComponent<Renderer>().material = skinMaterial;
+
+        GameObject headObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        headObject.name = "Head";
+        headObject.transform.SetParent(transform, false);
+        headObject.transform.localPosition = new Vector3(0f, 0.62f, 0f);
+        headObject.transform.localScale = new Vector3(0.68f, 0.78f, 0.58f);
+        headObject.GetComponent<Renderer>().material = skinMaterial;
+        head = headObject.transform;
+
+        GameObject faceObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        faceObject.name = "Face";
+        faceObject.transform.SetParent(head, false);
+        faceObject.transform.localPosition = new Vector3(0f, -0.02f, -0.48f);
+        faceObject.transform.localScale = new Vector3(0.72f, 0.62f, 0.20f);
+        faceObject.GetComponent<Renderer>().material = faceMaterial;
+        face = faceObject.transform;
+
+        CreateEye("LeftEye", new Vector3(-0.15f, 0.08f, -0.66f));
+        CreateEye("RightEye", new Vector3(0.15f, 0.08f, -0.66f));
+        CreateMouth();
+
+        Rigidbody rb = gameObject.GetComponent<Rigidbody>();
+        if (rb == null)
+            rb = gameObject.AddComponent<Rigidbody>();
+
+        rb.isKinematic = true;
+        rb.useGravity = false;
     }
 
-    public void TrySlap(Vector3 point,float speed)
+    private void CreateEye(string eyeName, Vector3 localPosition)
     {
-        if(Time.time-lastSlap<0.12f) return;
-        if(point.z > transform.position.z-0.15f) return;
-        lastSlap=Time.time;
-        float power=Mathf.Clamp(speed,0,12);
-        float signed=(point.x>=transform.position.x?1f:-1f);
-        wobble=Mathf.Clamp(power*0.9f,2f,11f)*signed;
-        game.RegisterHit(power,point,Vector3.back);
+        GameObject eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        eye.name = eyeName;
+        eye.transform.SetParent(head, false);
+        eye.transform.localPosition = localPosition;
+        eye.transform.localScale = Vector3.one * 0.075f;
+        eye.GetComponent<Renderer>().material =
+            runtime != null ? runtime.Mat(Color.white, 0f) : MakeMaterial(Color.white);
     }
 
-    void Update()
+    private void CreateMouth()
     {
-        if(Mathf.Abs(wobble)>0.01f)
-        {
-            float a=Mathf.LerpAngle(0,wobble,Mathf.Clamp01(Time.deltaTime*12f));
-            transform.localRotation=Quaternion.Euler(0,a,0);
-            wobble=Mathf.MoveTowards(wobble,0,Time.deltaTime*22f);
-        }
-        else transform.localRotation=Quaternion.identity;
+        GameObject mouth = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        mouth.name = "Mouth";
+        mouth.transform.SetParent(head, false);
+        mouth.transform.localPosition = new Vector3(0f, -0.17f, -0.66f);
+        mouth.transform.localScale = new Vector3(0.25f, 0.035f, 0.025f);
+        mouth.GetComponent<Renderer>().material =
+            runtime != null ? runtime.Mat(new Color(0.08f, 0.01f, 0.01f), 0f)
+                            : MakeMaterial(new Color(0.08f, 0.01f, 0.01f));
+    }
+
+    public void RegisterHit(float power, Vector3 point, Vector3 normal)
+    {
+        if (runtime != null)
+            runtime.RegisterHit(power, point, normal);
+    }
+
+    private Material MakeMaterial(Color color)
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+
+        Material material = new Material(shader);
+        material.color = color;
+        return material;
     }
 }
