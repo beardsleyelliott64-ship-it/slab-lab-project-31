@@ -1,50 +1,54 @@
-name: Build SlapLab Quest 3
+name: Install Full SlapLab Quest 3 Project
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+
+permissions:
+  contents: write
 
 jobs:
-  prepare:
+  install:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Extract fixed Unity project
+      - name: Extract full Unity project
         run: |
+          set -e
+          test -f SlapLab_Quest3_FULL_PROJECT.zip
           rm -rf Assets Packages ProjectSettings
           mkdir -p /tmp/slaplab
+          unzip -o SlapLab_Quest3_FULL_PROJECT.zip -d /tmp/slaplab
+          cp -a /tmp/slaplab/. .
 
-          unzip -o SlapLab_Quest3_Fixed_Folders.zip -d /tmp/slaplab
-
-          if [ -d "/tmp/slaplab/SlapLab_Quest3_Fixed_Folders" ]; then
-            cp -a /tmp/slaplab/SlapLab_Quest3_Fixed_Folders/. .
-          else
-            cp -a /tmp/slaplab/. .
-          fi
-
-      - name: Verify Unity project
+      - name: Verify full Unity project
         run: |
+          set -e
           test -d Assets
           test -d Packages
           test -d ProjectSettings
           test -f ProjectSettings/ProjectVersion.txt
+          test -f ProjectSettings/EditorBuildSettings.asset
           test -f Assets/Scenes/Main.unity
+          test -f Assets/Scripts/Core/SlapLabRuntime.cs
+          test -f Assets/Scripts/Gameplay/SlapTarget.cs
+          test -f Assets/Scripts/VR/VRHand.cs
+          test -f Assets/Editor/BuildSettingsFix.cs
+          test -f Assets/Editor/QuestXRSetup.cs
+          echo "FULL UNITY PROJECT VERIFIED"
 
-      - name: Commit extracted Unity project
+      - name: Commit full project
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Assets Packages ProjectSettings
-
           if git diff --cached --quiet; then
-            echo "No Unity project changes to commit."
+            echo "No project changes."
           else
-            git commit -m "Install fixed SlapLab Quest 3 Unity project"
+            git commit -m "Install full SlapLab Quest 3 project"
             git push
           fi
