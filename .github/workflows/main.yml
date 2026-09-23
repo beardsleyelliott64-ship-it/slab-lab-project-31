@@ -1,0 +1,49 @@
+name: Extract Unity Project
+
+on:
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Unity project ZIP
+        run: |
+          mkdir -p /tmp/unity
+          unzip -o SlapLab_Quest3_UnityBuildAutomation_Fixed.zip -d /tmp/unity
+
+          echo "ZIP contents:"
+          find /tmp/unity -maxdepth 3 -type f | head -100
+
+          if [ -d "/tmp/unity/Assets" ]; then
+            cp -R /tmp/unity/Assets ./Assets
+          fi
+
+          if [ -d "/tmp/unity/Packages" ]; then
+            cp -R /tmp/unity/Packages ./Packages
+          fi
+
+          if [ -d "/tmp/unity/ProjectSettings" ]; then
+            cp -R /tmp/unity/ProjectSettings ./ProjectSettings
+          fi
+
+      - name: Commit Unity project structure
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add Assets Packages ProjectSettings
+
+          if git diff --cached --quiet; then
+            echo "No Unity project changes detected."
+          else
+            git commit -m "Fix Unity project folder structure"
+            git push
+          fi
